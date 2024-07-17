@@ -7,6 +7,10 @@ from pymongo import MongoClient
 
 
 def log_stats():
+    """
+    prints nginx log status
+    """
+
     # Connect to MongoDB
     client = MongoClient()
     db = client.logs
