@@ -1,11 +1,38 @@
 #!/usr/bin/env python3
 """
-This module contains a class Cache with methods that store and retrieve data from Redis.
+This module contains a class Cache with methods that store and
+retrieve data from Redis.
 """
 
 import redis
 import uuid
 from typing import Any, Callable, Optional, Union
+from functools import wraps
+
+
+def count_calls(method: Callable) -> Callable:
+    """
+    Decorator that counts how many times a method is called.
+
+    Arguments:
+    method: The method to be decorated.
+
+    Returns:
+    A wrapper function that increments the count
+    each time the method is called
+    """
+
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        """
+        Wrapper function that increments the call count and
+        calls the original method.
+        """
+        key = f"{method.__qualname__}:calls"
+        self._redis.incr(key)
+        return method(self, *args, **kwargs)
+
+    return wrapper
 
 
 class Cache:
@@ -27,6 +54,7 @@ class Cache:
         self._redis = redis.Redis()
         self._redis.flushdb()
 
+    @count_calls
     def store(self, data: Union[str, bytes, int, float]) -> str:
         """
         Generates a random key using uuid and stores the input data in Redis.
@@ -41,7 +69,8 @@ class Cache:
         self._redis.set(key, data)
         return key
 
-    def get(self, key: str, fn: Optional[Callable[[bytes], Any]] = None) -> Any:
+    def get(self, key: str,
+            fn: Optional[Callable[[bytes], Any]] = None) -> Any:
         """
         Retrieves data by key and applies an optional conversion function.
 
@@ -50,7 +79,8 @@ class Cache:
         fn: A callable function to convert the data to the desired format.
 
         Returns:
-        The data retrieved and converted by the function if provided, otherwise the raw data.
+        The data retrieved and converted by the function if provided,
+        otherwise the raw data.
         """
         data = self._redis.get(key)
         if data is None:
